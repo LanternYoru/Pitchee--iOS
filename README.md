@@ -1,158 +1,78 @@
-# Pitchee Android
+# Pitchee iOS
 
-**English** | [简体中文](README.zh-CN.md)
+基于 [Pitchee Android](https://github.com/Project-Pitchee/Pitchee-Android) 的原生 iOS 移植。界面使用 **SwiftUI / Swift**，录音使用 AVAudioEngine，分析复用 PitcheeCore C++、原始 ncnn 模型与评分规则。最低 iOS 16，支持 iPhone / iPad。许可证 GPL-3.0-only。
 
-<p align="center">
-  <img src="https://img.shields.io/github/v/release/Project-Pitchee/Pitchee-Android?style=for-the-badge&amp;color=D96A3E&amp;labelColor=111827" alt="Latest release">
-  <img src="https://img.shields.io/github/downloads/Project-Pitchee/Pitchee-Android/total?style=for-the-badge&amp;color=4A5AAE&amp;labelColor=111827" alt="Downloads">
-  <img src="https://img.shields.io/github/stars/Project-Pitchee/Pitchee-Android?style=for-the-badge&amp;logo=github&amp;color=6495ED&amp;labelColor=111827" alt="Stars">
-  <img src="https://img.shields.io/github/license/Project-Pitchee/Pitchee-Android?style=for-the-badge&amp;color=2F8F5B&amp;labelColor=111827" alt="License">
-  <a href="https://discord.gg/r55jADhHBs"><img src="https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&amp;logo=discord&amp;logoColor=white" alt="Discord"></a>
-</p>
+## 已实现
 
-Pitchee is a voice-training app for transgender people. It helps you analyze your voice, track pitch, and follow changes over time.
+- 5–120 秒本地录音，女性化 / 男性化评分、音色、自然度、平均音高。
+- 单独声音健康分析。
+- 历史记录、按日期筛选、分训练方向的趋势图、录音回放、JSON 分享、删除。
+- 实时音高和频谱、C3–C6 合成钢琴、内置中文知识库。
+- 训练方向与音频保留设置，麦克风权限与后台录音停止处理。
 
-Unlike Voice Tools, which mostly uses pitch to infer gender expression, Pitchee analyzes pitch, timbre (resonance), and naturalness (whether the voice sounds constricted or pressed), while keeping a long-term record of how your voice changes.
+实时音高使用自相关估计，正式录音分析使用原版 SwiftF0。知识库目前按原始 Markdown 文本显示（包含公式源码）。钢琴是合成音色。暂未迁移 Android 的 PDF 报告、主题系统、英文界面和全部训练建议，不能视为 Android 全功能等价版本。
 
-![Pitchee feature overview](docs/images/pitchee-feature-overview.jpg)
+## 没有 Mac：用 GitHub Actions 构建
 
-## Download
+1. 在自己的 GitHub 账号创建仓库，将本目录的源码上传。`upstream/`、`android.zip`、`build/` 不上传。
+2. 默认分支使用 `main`；推送后，或进入 **Actions → iOS Release → Run workflow** 即可运行。
+3. 工作流先在 macOS 模拟器执行 Swift 测试和真实语音模型推理测试，再编译 arm64 Release 真机包。
+4. 成功后在该次运行的 **Artifacts → Pitchee-iOS-运行编号** 下载 IPA。
+5. 推送 `ios-v1.0.0` 等 tag 会自动建立 GitHub Release，附上未签名 IPA。已有同名 Release 会让发布步骤失败，应使用新版本 tag。
 
-[Download the latest version (mobile)](https://github.com/project-pitchee/Pitchee-Android/releases/latest/download/app-arm64-v8a-release.apk)
+默认无需任何 Secrets，会产出 `Pitchee-unsigned.ipa`。**Release 优化构建不等于已签名发行包：未签名 IPA 不能直接在普通 iPhone 上安装，需有效签名。** GitHub Release 也不等于 App Store / TestFlight 发布。
 
-Each release provides three APKs:
+本地 Windows 可编辑代码。Xcode 项目由 `project.yml` 自动生成；不需要在 Windows 安装 Xcode。当前交付尚未在 macOS 实际构建，第一次 Actions 是编译、推理和安装验证的必要步骤。
 
-| APK | Device |
-| --- | --- |
-| `app-arm64-v8a-release.apk` | Most Android phones |
-| `app-x86_64-release.apk` | Emulators |
-| `app-universal-release.apk` | Use this if you are unsure about your device architecture |
+## Apple 签名发行
 
-A daily Nightly build is also available for trying new versions first.
+在 Apple Developer 网站创建与 Bundle ID 对应的 App ID，取得证书、证书的私钥和匹配的 provisioning profile。若有 `.cer` 但没有配套私钥，无法用它签名。证书申请时需保留生成 CSR 的私钥，可在 Windows 使用 OpenSSL 生成 CSR 并将证书和私钥导出为 `.p12`，不必在本机拥有 Mac。
 
-## Features
+仓库 **Settings → Secrets and variables → Actions** 配置：
 
-### Voice analysis
-
-Record at least 5 seconds of speech and analyze your overall score, timbre score, naturalness, and average pitch.
-
-### Voice health
-
-Record at least 5 seconds of speech and analyze its level of hoarseness.
-
-### Real-time pitch
-
-See your current pitch and recent pitch contour in real time.
-
-### Spectrum
-
-View changes in your voice spectrum in real time.
-
-### Piano
-
-Play piano keys across masculine and feminine pitch ranges.
-
-### Dashboard
-
-Review your assessment count, activity calendar, overall score, naturalness, timbre score, and pitch changes.
-
-### Knowledge base
-
-Find relevant articles when your progress reaches a plateau. Because the authors' expertise is limited, some articles were produced with assistance from DeepSeek.
-
-### Calendar
-
-Browse and open previous voice assessments. Assessments with retained audio can be played back directly.
-
-## Screenshots
-
-<table>
-  <tr>
-    <td align="center"><img src="docs/images/screens/analysis-result.png" width="260" alt="Voice analysis"><br>Voice analysis</td>
-    <td align="center"><img src="docs/images/screens/pitch.png" width="260" alt="Real-time pitch"><br>Real-time pitch</td>
-    <td align="center"><img src="docs/images/screens/spectrum.png" width="260" alt="Spectrum"><br>Spectrum</td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/images/screens/dashboard.png" width="260" alt="Dashboard"><br>Dashboard</td>
-    <td align="center"><img src="docs/images/screens/activity.png" width="260" alt="Activity"><br>Activity</td>
-    <td align="center"><img src="docs/images/screens/piano.png" width="260" alt="Piano"><br>Piano</td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/images/screens/voice-health.png" width="260" alt="Voice health"><br>Voice health</td>
-    <td align="center"><img src="docs/images/screens/voice-library.png" width="260" alt="Voice knowledge base"><br>Voice knowledge base</td>
-    <td align="center"><img src="docs/images/screens/settings.png" width="260" alt="Settings"><br>Settings</td>
-  </tr>
-</table>
-
-## Model training
-
-We trained two models to assess vocal timbre and naturalness.
-
-### Timbre score model ([VFP](https://arxiv.org/html/2404.15176v1))
-
-This model estimates how likely a voice is to be socially perceived as masculine or feminine. It was trained on typical binary-gender Mandarin speech and calibrated for transfeminine users using isotonic regression based on survey results distributed in August.
-
-#### Architecture
-
-![VFP model architecture](docs/images/model-vfp-architecture.png)
-
-#### Datasets
-
-| **Item** | **Data** |
-| --- | --- |
-| **BGC corpus** | **AISHELL-3**, read Mandarin speech |
-| **BGC speakers** | **84** (**42 female / 42 male**) |
-| **BGC utterances** | **33,382** |
-| **Training set** | **68 speakers** (**34 female / 34 male**) |
-| **Development set** | **16 speakers** (**8 female / 8 male**) |
-| **Split method** | **Speaker-disjoint** |
-| **Perceptual calibration recordings** | **45** |
-| **Current label file** | **31 judgments per clip, 1,395 judgments total** |
-| **Audio window** | **1.515 seconds** |
-| **Inference hop** | **100 ms** |
-
-#### Results
-
-| **Metric** | **Result** |
-| --- | --- |
-| **Development-set female accuracy** | **100%** |
-| **Development-set male accuracy** | **100%** |
-| **In-sample calibration R²** | **0.8039** |
-| **Leave-one-recording-out calibration R²** | **0.7082** |
-| **Calibration output range** | **0–96.875** |
-
-### Naturalness model
-
-This model detects constricted or pressed voice and falsetto. It was trained on 121 mobile voice recordings from transgender people. The recordings came from the Pitchee beta, and permission was obtained from every uploader before training.
-
-#### Architecture
-
-![Naturalness model architecture](docs/images/model-naturalness-architecture.png)
-
-#### Results
-
-![Naturalness model evaluation results](docs/images/model-naturalness-evaluation.png)
-
-| **label** | **label_name** | **clips** | **mean_probability** | **median_probability** | **standard_deviation** |
-| --- | --- | --- | --- | --- | --- |
-| **0** | natural | 61 | 0.2978 | 0.2346 | 0.2738 |
-| **1** | pressed | 56 | 0.6917 | 0.7384 | 0.2503 |
-
-## Open-source references and license
-
-Pitchee Android is released under **GPL-3.0-only**. The full license text is available in [`LICENSE`](LICENSE).
-
-This project uses the following open-source projects:
-
-| Project | License | Repository |
+| 类型 | 名称 | 内容 |
 | --- | --- | --- |
-| PitcheeCore | GPL-3.0-only | <https://github.com/project-pitchee/Pitchee-core> |
-| SwiftF0 | MIT | <https://github.com/lars76/swift-f0> |
-| Silero VAD | MIT | <https://github.com/snakers4/silero-vad> |
-| SpeechBrain | Apache-2.0 | <https://github.com/speechbrain/speechbrain> |
-| ncnn | BSD-3-Clause | <https://github.com/Tencent/ncnn> |
-| AndroidX / Jetpack Compose | Apache-2.0 | <https://github.com/androidx/androidx> |
-| Markwon | Apache-2.0 | <https://github.com/noties/Markwon> |
-| Material Symbols | Apache-2.0 | <https://github.com/google/material-design-icons> |
-| JLaTeXMath-Android | GPL-2.0 | <https://github.com/noties/jlatexmath-android> |
-| Pitchee Articles | GPL-3.0-only | <https://github.com/Project-Pitchee/Articles> |
+| Variable | `IOS_BUNDLE_ID` | 例如 `space.yourname.pitchee`，默认 `space.pitchee.ios` |
+| Secret | `IOS_TEAM_ID` | Apple Team ID |
+| Secret | `IOS_CERTIFICATE_P12_BASE64` | 包含私钥的 P12 文件 Base64 |
+| Secret | `IOS_CERTIFICATE_PASSWORD` | P12 密码（设置非空密码） |
+| Secret | `IOS_PROVISION_PROFILE_BASE64` | provisioning profile 文件 Base64 |
+
+Windows PowerShell 编码文件示例：
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes('C:\certificates\distribution.p12')) | Set-Clipboard
+```
+
+手动 Run workflow 勾选 `signed`，选择与 profile 相符的 `ad-hoc`、`app-store` 或 `development`。签名资产只在手动签名构建中导入；工作流会验证 Team ID / App ID、创建临时 keychain，并在结束时清理。证书和 profile 不要提交进 Git。
+
+- Ad Hoc 需要 profile 包含安装设备的 UDID。
+- App Store 方式导出的 IPA 用于 App Store Connect，不能作为普通侧载包直接安装。
+- 本流程导出并上传 Actions artifact，不自动上传 App Store Connect / TestFlight。上架前仍需图标、商店资料、隐私披露及 Apple 审核。
+- 标签触发的 GitHub Release 固定发布未签名包；手动签名包从对应 Actions artifact 下载。
+
+## 工程结构与测试
+
+`Sources/` 为 SwiftUI、录音、存储与工具；`Vendor/PitcheeCore/` 为上游内核和模型；`Scripts/` 为构建签名脚本；`.github/workflows/ios.yml` 为云端测试、打包与标签发行。
+
+在 Mac / GitHub macOS runner：
+
+```bash
+brew install cmake ninja xcodegen
+bash Scripts/build.sh iphoneos
+xcodebuild -project Pitchee.xcodeproj -scheme Pitchee -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath build/Pitchee.xcarchive \
+  CODE_SIGNING_ALLOWED=NO archive
+```
+
+模拟器使用 `bash Scripts/build.sh iphonesimulator`，再运行 `xcodebuild test`。模拟器和真机构建请分别使用独立工作目录，公共 `build/native/lib` 一次只保存一种 SDK 的库。
+
+测试包含真实语音经过全部模型的分析、结果 JSON 解码与评分范围检查，以及实时估计对正弦波与静音的检测。真机的麦克风权限、蓝牙路由、音频中断、性能和签名安装仍需设备测试。
+
+## 来源与改动
+
+上游快照：`Project-Pitchee/Pitchee-Android@1f5d95f4932bc619d36f598c192b9c5e68023c50`。
+
+保留 GPL 原文及模型许可。新增 Swift iOS 应用和构建流程；在 `Vendor/PitcheeCore/src/model_runtime.cpp` 中为 Apple 平台默认选择 ncnn；通过根目录 CMake 构建静态 Core 与 ncnn，避免原 Android CMake 的 Android 系统库与 OpenMP 依赖。ncnn 固定到 `c4193aadbbb56582aa87b1850dd3d98fb8fd936d`（20250916），运行时仅 CPU 推理，不启用 Vulkan / ONNX Runtime。
+
+上游模型的统计性质和适用范围不因移植改变；评分用于观察变化。原始项目对算法及训练数据的说明见上游 README。
