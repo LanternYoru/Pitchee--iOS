@@ -44,15 +44,14 @@ final class AudioCapture {
         engine.stop(); engine.inputNode.removeTap(onBus: 0)
         lock.lock(); active = false; let pcm = samples; let sr = rate; samples = []; lock.unlock()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        let url = HistoryStore.directory.appendingPathComponent(UUID().uuidString + ".caf")
+        let url = HistoryStore.directory.appendingPathComponent(UUID().uuidString + ".wav")
         guard let format = AVAudioFormat(standardFormatWithSampleRate: sr, channels: 1),
               let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(pcm.count)) else { throw CaptureError.unavailable }
         buffer.frameLength = AVAudioFrameCount(pcm.count)
         pcm.withUnsafeBufferPointer { ptr in
             if let source = ptr.baseAddress { buffer.floatChannelData![0].update(from: source, count: pcm.count) }
         }
-        let file = try AVAudioFile(forWriting: url, settings: format.settings)
-        try file.write(from: buffer)
+        try RecordingAudio.writeWAV(buffer, to: url)
         return PCMRecording(samples: pcm, rate: sr, file: url)
     }
     func cancel() {

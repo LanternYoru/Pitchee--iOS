@@ -34,52 +34,43 @@ struct CaptureView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text(healthOnly ? "关注声音的状态" : "听见自己的变化").font(.largeTitle.bold())
-                Text("在安静环境中自然朗读至少 5 秒。声音只在本机处理。")
-                    .foregroundStyle(.secondary)
-                Text("今天的阳光落在窗边，我慢慢地说着话，让声音保持轻松与自然。每一次练习，都是认识自己的新机会。")
-                    .font(.title3).padding().background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
-                if voice.recording {
-                    Text(voice.seconds, format: .number.precision(.fractionLength(1))).font(.system(size: 48, weight: .light, design: .rounded))
-                    PitchPlot(values: voice.pitches)
-                }
-                if voice.busy { ProgressView("正在本地分析，请稍候…").padding() }
-                Button {
-                    if voice.recording { voice.finish(history: history, masculine: masculine, healthOnly: healthOnly, retain: retain) }
-                    else { Task { await voice.start() } }
-                } label: {
-                    Label(voice.recording ? "结束并分析" : "开始录音", systemImage: voice.recording ? "stop.fill" : "mic.fill")
-                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 12)
-                }.buttonStyle(.borderedProminent).disabled(voice.busy)
-                if let result = voice.latest { ResultView(result: result) }
-                if let health = voice.health {
-                    LabeledContent("声音健康评分", value: health.formatted(.number.precision(.fractionLength(1))))
-                    Text("这是模型评估结果，不能用于诊断。若持续不适，请停止练习并咨询专业人士。")
-                        .font(.footnote).foregroundStyle(.secondary)
+                if let item = voice.latest {
+                    AssessmentResultView(item: item)
+                    Button("重新录音") { voice.resetResult() }
+                        .frame(maxWidth: .infinity)
+                } else {
+                    Text(healthOnly ? "关注声音的状态" : "听见自己的变化").font(.largeTitle.bold())
+                    Text("在安静环境中自然朗读至少 5 秒。声音只在本机处理。")
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(ReadingPassage.title).font(.headline)
+                        Text(ReadingPassage.text).font(.body)
+                    }.padding().background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 20))
+                    if voice.recording {
+                        Text(voice.seconds, format: .number.precision(.fractionLength(1))).font(.system(size: 48, weight: .light, design: .rounded))
+                        PitchPlot(values: voice.pitches)
+                    }
+                    if voice.busy { ProgressView("正在本地分析，请稍候…").padding() }
+                    Button {
+                        if voice.recording { voice.finish(history: history, masculine: masculine, healthOnly: healthOnly, retain: retain) }
+                        else { Task { await voice.start() } }
+                    } label: {
+                        Label(voice.recording ? "结束并分析" : "开始录音", systemImage: voice.recording ? "stop.fill" : "mic.fill")
+                            .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 12)
+                    }.buttonStyle(.borderedProminent).disabled(voice.busy)
+                    if let health = voice.health {
+                        LabeledContent("声音健康评分", value: health.formatted(.number.precision(.fractionLength(1))))
+                        Text("这是模型评估结果，不能用于诊断。若持续不适，请停止练习并咨询专业人士。")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
                 }
             }.padding()
-        }.navigationTitle(healthOnly ? "声音健康" : "Pitchee")
+        }.navigationTitle(healthOnly ? "声音健康" : voice.latest == nil ? "声音分析" : "分析结果")
         .alert("无法完成", isPresented: Binding(get: { voice.error != nil }, set: { if !$0 { voice.error = nil } })) {
             Button("好") { voice.error = nil }
         } message: { Text(voice.error ?? "") }
         .onDisappear { if voice.recording { voice.cancel() } }
         .onChange(of: scenePhase) { if $0 != .active && voice.recording { voice.cancel() } }
-    }
-}
-
-struct ResultView: View {
-    let result: AnalysisResult
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("本次分析").font(.title2.bold())
-            Text(result.composite.final_score, format: .number.precision(.fractionLength(1)))
-                .font(.system(size: 64, weight: .semibold, design: .rounded)).foregroundStyle(.orange)
-            LabeledContent("音色", value: result.vfp.vfp_standard_score.formatted(.number.precision(.fractionLength(1))))
-            LabeledContent("自然度", value: result.naturalness.score.formatted(.number.precision(.fractionLength(1))))
-            LabeledContent("平均音高", value: result.f0.mean_hz.map { String(format: "%.1f Hz", $0) } ?? "未检测到")
-            Text("模型分数用于观察训练变化，不定义你的性别或声音价值。")
-                .font(.footnote).foregroundStyle(.secondary)
-        }.padding().background(.orange.opacity(0.06), in: RoundedRectangle(cornerRadius: 20))
     }
 }
 
@@ -139,27 +130,10 @@ struct DashboardView: View {
 
 struct AssessmentDetail: View {
     let item: Assessment
-    @State private var player: AVAudioPlayer?
-    @State private var error: String?
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                if let result = item.result { ResultView(result: result) }
-                if let audio = item.audioFile {
-                    Button {
-                        do {
-                            try AVAudioSession.sharedInstance().setCategory(.playback)
-                            try AVAudioSession.sharedInstance().setActive(true)
-                            player = try AVAudioPlayer(contentsOf: HistoryStore.directory.appendingPathComponent(audio))
-                            player?.play()
-                        } catch { self.error = error.localizedDescription }
-                    } label: { Label("播放录音", systemImage: "play.fill") }
-                }
-                ShareLink("导出分析 JSON", item: item.json)
-            }.padding()
-        }.navigationTitle(item.date.formatted(date: .abbreviated, time: .shortened))
-        .onDisappear { player?.stop(); try? AVAudioSession.sharedInstance().setActive(false) }
-        .alert("播放失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("好") { error = nil } } message: { Text(error ?? "") }
+            AssessmentResultView(item: item, showsDate: true).padding()
+        }.navigationTitle("分析结果")
     }
 }
 
