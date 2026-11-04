@@ -23,4 +23,3 @@ file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/ncnn-include)
 file(CREATE_LINK ${ncnn_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/ncnn-include/ncnn SYMBOLIC)
 target_link_libraries(pitchee_core PRIVATE ncnn)
 install(TARGETS pitchee_core ARCHIVE DESTINATION lib)
-
