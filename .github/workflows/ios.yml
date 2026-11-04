@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     env:
       SIGNED: ${{ github.event_name == 'workflow_dispatch' && inputs.signed || false }}
@@ -35,7 +35,7 @@ jobs:
         id: device-cache
         with:
           path: build/native
-          key: native-ios16-device-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
+          key: macos26-native-ios16-device-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
       - name: Build native inference libraries and generate Xcode project
         run: bash Scripts/build.sh iphoneos
         if: steps.device-cache.outputs.cache-hit != 'true'
@@ -98,7 +98,7 @@ jobs:
         id: simulator-cache
         with:
           path: build/native
-          key: native-ios16-simulator-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
+          key: macos26-native-ios16-simulator-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
       - run: bash Scripts/build.sh iphonesimulator
         if: steps.simulator-cache.outputs.cache-hit != 'true'
       - run: xcodegen generate
