@@ -1,6 +1,7 @@
 import AVFoundation
 import CPitcheeCore
 import Foundation
+import Combine
 
 @MainActor final class VoiceModel: ObservableObject {
     @Published var recording = false
