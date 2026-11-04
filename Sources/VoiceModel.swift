@@ -8,7 +8,7 @@ import Combine
     @Published var busy = false
     @Published var seconds = 0.0
     @Published var error: String?
-    @Published var latest: AnalysisResult?
+    @Published private(set) var latest: Assessment?
     @Published var health: Double?
     @Published var pitches: [Double] = []
     @Published var spectrum: [Float] = []
@@ -54,6 +54,8 @@ import Combine
 
     func cancel() { timer?.invalidate(); timer = nil; capture.cancel(); recording = false }
 
+    func resetResult() { latest = nil }
+
     func finish(history: HistoryStore, masculine: Bool, healthOnly: Bool = false, retain: Bool) {
         guard recording else { return }
         timer?.invalidate(); timer = nil; recording = false
@@ -77,8 +79,10 @@ import Combine
                         do {
                             if healthOnly { self.health = Double(json) }
                             else {
-                                self.latest = try JSONDecoder().decode(AnalysisResult.self, from: Data(json.utf8))
-                                try history.add(Assessment(profile: masculine ? "masculinization" : "feminization", json: json, audioFile: retain ? audio.file.lastPathComponent : nil))
+                                _ = try JSONDecoder().decode(AnalysisResult.self, from: Data(json.utf8))
+                                let assessment = Assessment(profile: masculine ? "masculinization" : "feminization", json: json, audioFile: retain ? audio.file.lastPathComponent : nil)
+                                try history.add(assessment)
+                                self.latest = assessment
                             }
                             if !retain || healthOnly { try? FileManager.default.removeItem(at: audio.file) }
                         } catch { self.error = error.localizedDescription; try? FileManager.default.removeItem(at: audio.file) }

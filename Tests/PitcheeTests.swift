@@ -4,6 +4,30 @@ import CPitcheeCore
 @testable import Pitchee
 
 final class PitcheeTests: XCTestCase {
+    func testPlaybackOpensNewWAVAndLegacyCAF() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1))
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1600))
+        buffer.frameLength = 1600
+        let samples = try XCTUnwrap(buffer.floatChannelData?[0])
+        for i in 0..<1600 { samples[i] = 0.25 * sin(Float(i) * 0.1) }
+
+        let wav = directory.appendingPathComponent("current.wav")
+        try RecordingAudio.writeWAV(buffer, to: wav)
+        let caf = directory.appendingPathComponent("legacy.caf")
+        do {
+            let file = try AVAudioFile(forWriting: caf, settings: format.settings)
+            try file.write(from: buffer)
+        }
+        for url in [wav, caf] {
+            let player = try RecordingAudio.makePlayer(for: url)
+            XCTAssertEqual(player.duration, 0.1, accuracy: 0.001)
+            XCTAssertEqual(player.numberOfChannels, 1)
+        }
+    }
+
     func testBundledModelsAnalyzeRealSpeech() throws {
         let models = try XCTUnwrap(Bundle.main.url(forResource: "models", withExtension: nil))
         let fixture = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "speech", withExtension: "m4a"))
