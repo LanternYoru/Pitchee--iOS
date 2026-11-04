@@ -27,7 +27,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: brew install cmake ninja xcodegen
+      - uses: actions/cache@v4
+        id: native-cache
+        with:
+          path: build/native
+          key: native-ios16-simulator-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
       - run: bash Scripts/build.sh iphonesimulator
+        if: steps.native-cache.outputs.cache-hit != 'true'
+      - run: xcodegen generate
+        if: steps.native-cache.outputs.cache-hit == 'true'
       - name: Test Swift and bundled model inference on simulator
         run: |
           set -euo pipefail
@@ -51,8 +59,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install build tools
         run: brew install cmake ninja xcodegen
+      - uses: actions/cache@v4
+        id: native-cache
+        with:
+          path: build/native
+          key: native-ios16-device-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
       - name: Build native inference libraries and generate Xcode project
         run: bash Scripts/build.sh iphoneos
+        if: steps.native-cache.outputs.cache-hit != 'true'
+      - run: xcodegen generate
+        if: steps.native-cache.outputs.cache-hit == 'true'
       - name: Import signing assets
         if: env.SIGNED == 'true'
         env:
@@ -117,3 +133,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" output/*.ipa --repo "$GITHUB_REPOSITORY" \
             --title "Pitchee iOS $GITHUB_REF_NAME" \
             --notes 'Unsigned iOS Release build. Requires valid signing before installation. 未签名 IPA，需自行签名后安装。'
+
