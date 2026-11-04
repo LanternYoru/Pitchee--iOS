@@ -22,7 +22,7 @@
 
 默认无需任何 Secrets，会产出 `Pitchee-unsigned.ipa`。**Release 优化构建不等于已签名发行包：未签名 IPA 不能直接在普通 iPhone 上安装，需有效签名。** GitHub Release 也不等于 App Store / TestFlight 发布。
 
-本地 Windows 可编辑代码。Xcode 项目由 `project.yml` 自动生成；不需要在 Windows 安装 Xcode。当前交付尚未在 macOS 实际构建，第一次 Actions 是编译、推理和安装验证的必要步骤。
+本地 Windows 可编辑代码。Xcode 项目由 `project.yml` 自动生成；不需要在 Windows 安装 Xcode。已在 GitHub macOS runner 通过 Swift 编译、真实语音模型推理测试及真机 arm64 Release 归档，生成未签名 IPA：[成功构建](https://github.com/LanternYoru/Pitchee--iOS/actions/runs/41813140637)。签名安装、真机录音与蓝牙路由仍需设备验证。
 
 ## Apple 签名发行
 
@@ -76,3 +76,4 @@ xcodebuild -project Pitchee.xcodeproj -scheme Pitchee -configuration Release \
 保留 GPL 原文及模型许可。新增 Swift iOS 应用和构建流程；在 `Vendor/PitcheeCore/src/model_runtime.cpp` 中为 Apple 平台默认选择 ncnn；通过根目录 CMake 构建静态 Core 与 ncnn，避免原 Android CMake 的 Android 系统库与 OpenMP 依赖。ncnn 固定到 `c4193aadbbb56582aa87b1850dd3d98fb8fd936d`（20250916），运行时仅 CPU 推理，不启用 Vulkan / ONNX Runtime。
 
 上游模型的统计性质和适用范围不因移植改变；评分用于观察变化。原始项目对算法及训练数据的说明见上游 README。
+
