@@ -21,40 +21,7 @@ concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  test:
-    runs-on: macos-15
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - run: brew install cmake ninja xcodegen
-      - uses: actions/cache@v4
-        id: native-cache
-        with:
-          path: build/native
-          key: native-ios16-simulator-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
-      - run: bash Scripts/build.sh iphonesimulator
-        if: steps.native-cache.outputs.cache-hit != 'true'
-      - run: xcodegen generate
-        if: steps.native-cache.outputs.cache-hit == 'true'
-      - uses: actions/cache/save@v4
-        if: steps.native-cache.outputs.cache-hit != 'true'
-        with:
-          path: build/native
-          key: ${{ steps.native-cache.outputs.cache-primary-key }}
-      - name: Test Swift and bundled model inference on simulator
-        run: |
-          set -euo pipefail
-          simulator=$(xcrun simctl list devices available -j | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next(v["udid"] for k,vs in d["devices"].items() if "iOS" in k for v in vs if v["isAvailable"]))')
-          xcodebuild -project Pitchee.xcodeproj -scheme Pitchee -configuration Release \
-            -destination "platform=iOS Simulator,id=$simulator" \
-            -resultBundlePath build/TestResults.xcresult CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES test
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: iOS-TestResults
-          path: build/TestResults.xcresult
   build:
-    needs: test
     runs-on: macos-15
     timeout-minutes: 60
     env:
@@ -64,16 +31,21 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install build tools
         run: brew install cmake ninja xcodegen
-      - uses: actions/cache@v4
-        id: native-cache
+      - uses: actions/cache/restore@v4
+        id: device-cache
         with:
           path: build/native
           key: native-ios16-device-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
       - name: Build native inference libraries and generate Xcode project
         run: bash Scripts/build.sh iphoneos
-        if: steps.native-cache.outputs.cache-hit != 'true'
+        if: steps.device-cache.outputs.cache-hit != 'true'
       - run: xcodegen generate
-        if: steps.native-cache.outputs.cache-hit == 'true'
+        if: steps.device-cache.outputs.cache-hit == 'true'
+      - uses: actions/cache/save@v4
+        if: steps.device-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/native
+          key: ${{ steps.device-cache.outputs.cache-primary-key }}
       - name: Import signing assets
         if: env.SIGNED == 'true'
         env:
@@ -120,6 +92,34 @@ jobs:
             rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           fi
           rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/profile.mobileprovision" "$RUNNER_TEMP/profile.plist"
+      - name: Switch to simulator libraries
+        run: mv build/native build/native-device-install
+      - uses: actions/cache/restore@v4
+        id: simulator-cache
+        with:
+          path: build/native
+          key: native-ios16-simulator-${{ runner.arch }}-${{ hashFiles('CMakeLists.txt', 'Scripts/build.sh', 'Vendor/PitcheeCore/src/**', 'Vendor/PitcheeCore/include/**') }}
+      - run: bash Scripts/build.sh iphonesimulator
+        if: steps.simulator-cache.outputs.cache-hit != 'true'
+      - run: xcodegen generate
+        if: steps.simulator-cache.outputs.cache-hit == 'true'
+      - uses: actions/cache/save@v4
+        if: steps.simulator-cache.outputs.cache-hit != 'true'
+        with:
+          path: build/native
+          key: ${{ steps.simulator-cache.outputs.cache-primary-key }}
+      - name: Test Swift and bundled model inference on simulator
+        run: |
+          set -euo pipefail
+          simulator=$(xcrun simctl list devices available -j | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next(v["udid"] for k,vs in d["devices"].items() if "iOS" in k for v in vs if v["isAvailable"]))')
+          xcodebuild -project Pitchee.xcodeproj -scheme Pitchee -configuration Release \
+            -destination "platform=iOS Simulator,id=$simulator" \
+            -resultBundlePath build/TestResults.xcresult CODE_SIGNING_ALLOWED=NO ENABLE_TESTABILITY=YES test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iOS-TestResults
+          path: build/TestResults.xcresult
   release:
     if: startsWith(github.ref, 'refs/tags/ios-v')
     needs: build
